@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import NexoraScreen from './screens/NexoraScreen.jsx';
+import LoadingScreen from './components/LoadingScreen.jsx';
 import './styles.css';
 
 export default function App() {
   const [activeScreen, setActiveScreen] = useState('nexora');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Scroll to top when changing screens
   useEffect(() => {
@@ -11,10 +13,12 @@ export default function App() {
   }, [activeScreen]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface font-sans" id="app-root">
+    <div className="min-h-screen bg-surface text-on-surface font-sans relative" id="app-root">
+      {isLoading && <LoadingScreen onComplete={() => setIsLoading(false)} />}
       <main className="w-full">
         <NexoraScreen onSelectScreen={(screenId) => setActiveScreen(screenId)} />
       </main>
     </div>
   );
 }
+
