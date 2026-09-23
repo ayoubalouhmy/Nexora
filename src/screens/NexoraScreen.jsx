@@ -1,26 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  
+  ArrowRight, ArrowUpRight, Grid2x2, CheckCircle2, Lock, Bell,
+  X, Menu, Tag, Award, ExternalLink, Route, ClipboardList,
+  Paintbrush, Code2, BadgeCheck, Users, HelpCircle, Send,
+  MapPin, Mail, Phone, ShieldCheck, MessageCircle, Handshake,
+  MessageSquare, FileCode2, LayoutDashboard, Palette, Braces,
+  Layers, Terminal, GitCommit, Container, Network, Globe,
+  Database, HardDrive,
+} from 'lucide-react';
+import {
   NEXORA_PRICING,
   PORTFOLIO_ITEMS,
   FAQ_ITEMS,
 } from '../data/screensData.js';
 
-function TransparentLogo({ src, alt, className, invert = false, style, width = 160, height = 40 }) {
+// -------------------------------------------------------------
+// TransparentLogo: strips background from nexora.webp via canvas.
+// Processing is deferred with requestIdleCallback so it never
+// blocks the critical rendering path.
+// -------------------------------------------------------------
+function TransparentLogo({ src, alt, className, invert = false, width = 180, height = 40 }) {
   const [processedSrc, setProcessedSrc] = useState(src);
 
   useEffect(() => {
     let isMounted = true;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
 
-    const process = () => {
+    const process = (imgEl) => {
       try {
-        const natW = img.naturalWidth || img.width;
-        const natH = img.naturalHeight || img.height;
+        const natW = imgEl.naturalWidth || imgEl.width;
+        const natH = imgEl.naturalHeight || imgEl.height;
         if (!natW || !natH) return;
 
-        // Downscale processing canvas for high speed (< 2ms vs 200ms)
         const scale = Math.min(1, 360 / natW);
         const w = Math.round(natW * scale);
         const h = Math.round(natH * scale);
@@ -31,62 +41,39 @@ function TransparentLogo({ src, alt, className, invert = false, style, width = 1
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        ctx.drawImage(img, 0, 0, w, h);
+        ctx.drawImage(imgEl, 0, 0, w, h);
         const imgData = ctx.getImageData(0, 0, w, h);
         const d = imgData.data;
 
-        // Sample corner background colors
         const bgR = (d[0] + d[(w - 1) * 4]) / 2;
         const bgG = (d[1] + d[(w - 1) * 4 + 1]) / 2;
         const bgB = (d[2] + d[(w - 1) * 4 + 2]) / 2;
 
-        let minX = w;
-        let minY = h;
-        let maxX = 0;
-        let maxY = 0;
+        let minX = w, minY = h, maxX = 0, maxY = 0;
 
         for (let y = 0; y < h; y++) {
           for (let x = 0; x < w; x++) {
             const idx = (y * w + x) * 4;
-            const r = d[idx];
-            const g = d[idx + 1];
-            const b = d[idx + 2];
-
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2];
             const dist = Math.hypot(r - bgR, g - bgG, b - bgB);
             const isVeryLight = r > 210 && g > 210 && b > 210;
-            const isLightNeutral =
-              r > 175 && g > 175 && b > 175 && Math.abs(r - g) < 18 && Math.abs(r - b) < 18;
+            const isLightNeutral = r > 175 && g > 175 && b > 175 && Math.abs(r - g) < 18 && Math.abs(r - b) < 18;
 
             if (dist < 40 || isVeryLight || isLightNeutral) {
               d[idx + 3] = 0;
             } else {
-              if (dist < 60) {
-                const alphaFactor = (dist - 40) / 20;
-                d[idx + 3] = Math.round(d[idx + 3] * alphaFactor);
-              }
-
+              if (dist < 60) d[idx + 3] = Math.round(d[idx + 3] * (dist - 40) / 20);
               if (invert) {
-                if (r < 100 && g < 120 && b < 110) {
-                  d[idx] = 245;
-                  d[idx + 1] = 247;
-                  d[idx + 2] = 245;
-                } else {
-                  d[idx] = Math.min(255, r + 50);
-                  d[idx + 1] = Math.min(255, g + 80);
-                  d[idx + 2] = Math.min(255, b + 60);
-                }
+                if (r < 100 && g < 120 && b < 110) { d[idx] = 245; d[idx + 1] = 247; d[idx + 2] = 245; }
+                else { d[idx] = Math.min(255, r + 50); d[idx + 1] = Math.min(255, g + 80); d[idx + 2] = Math.min(255, b + 60); }
               }
-
               if (d[idx + 3] > 25) {
-                if (x < minX) minX = x;
-                if (x > maxX) maxX = x;
-                if (y < minY) minY = y;
-                if (y > maxY) maxY = y;
+                if (x < minX) minX = x; if (x > maxX) maxX = x;
+                if (y < minY) minY = y; if (y > maxY) maxY = y;
               }
             }
           }
         }
-
         ctx.putImageData(imgData, 0, 0);
 
         if (maxX > minX && maxY > minY) {
@@ -95,41 +82,37 @@ function TransparentLogo({ src, alt, className, invert = false, style, width = 1
           const cropY = Math.max(0, minY - pad);
           const cropW = Math.min(w - cropX, maxX - minX + pad * 2);
           const cropH = Math.min(h - cropY, maxY - minY + pad * 2);
-
-          const cropCanvas = document.createElement('canvas');
-          cropCanvas.width = cropW;
-          cropCanvas.height = cropH;
-          const cropCtx = cropCanvas.getContext('2d');
-          if (cropCtx) {
-            cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-            if (isMounted) setProcessedSrc(cropCanvas.toDataURL('image/png'));
+          const cc = document.createElement('canvas');
+          cc.width = cropW; cc.height = cropH;
+          const cctx = cc.getContext('2d');
+          if (cctx) {
+            cctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+            if (isMounted) setProcessedSrc(cc.toDataURL('image/png'));
             return;
           }
         }
-
         if (isMounted) setProcessedSrc(canvas.toDataURL('image/png'));
-      } catch (err) {
+      } catch (_) {
         if (isMounted) setProcessedSrc(src);
       }
     };
 
-    const schedule = () => {
-      if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
-        window.requestAnimationFrame(() => setTimeout(process, 0));
-      } else {
-        setTimeout(process, 0);
-      }
+    const run = () => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => process(img);
+      img.src = src;
+      if (img.complete) process(img);
     };
 
-    img.onload = schedule;
-    img.src = src;
-    if (img.complete) {
-      schedule();
+    // Defer processing until browser is idle — never blocks LCP
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(run, { timeout: 2000 });
+      return () => { isMounted = false; cancelIdleCallback(id); };
+    } else {
+      const t = setTimeout(run, 100);
+      return () => { isMounted = false; clearTimeout(t); };
     }
-
-    return () => {
-      isMounted = false;
-    };
   }, [src, invert]);
 
   return (
@@ -141,11 +124,13 @@ function TransparentLogo({ src, alt, className, invert = false, style, width = 1
       loading="eager"
       decoding="async"
       className={className}
-      style={style}
     />
   );
 }
 
+// -------------------------------------------------------------
+// Main screen component
+// -------------------------------------------------------------
 export default function NexoraScreen({ onSelectScreen }) {
   const [activeCategory, setActiveCategory] = useState('Tous');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -175,69 +160,76 @@ export default function NexoraScreen({ onSelectScreen }) {
 
   const processSteps = [
     {
-      num: '01',
-      phase: 'Phase 1',
-      title: 'Écoute & Cadrage',
+      num: '01', phase: 'Phase 1', title: 'Écoute & Cadrage',
       desc: 'Nous comprenons en détail votre activité, vos contraintes métiers, votre cible et définissons le cahier des charges fonctionnel.',
-      deliverable: 'Cahier des charges & Devis',
-      icon: 'assignment',
-      highlight: false,
+      deliverable: 'Cahier des charges & Devis', Icon: ClipboardList, highlight: false,
     },
     {
-      num: '02',
-      phase: 'Phase 2',
-      title: 'Conception UI/UX',
+      num: '02', phase: 'Phase 2', title: 'Conception UI/UX',
       desc: "Nous concevons l'architecture d'information, les wireframes et les prototypes interactifs Figma haute fidélité pour validation.",
-      deliverable: 'Maquettes Figma & Prototype',
-      icon: 'brush',
-      highlight: false,
+      deliverable: 'Maquettes Figma & Prototype', Icon: Paintbrush, highlight: false,
     },
     {
-      num: '03',
-      phase: 'Phase 3',
-      title: 'Développement',
+      num: '03', phase: 'Phase 3', title: 'Développement',
       desc: 'Nous transformons la conception en code propre, sécurisé et scalable via des sprints hebdomadaires avec démos intermédiaires.',
-      deliverable: 'Code source propre & Démos',
-      icon: 'code',
-      highlight: false,
+      deliverable: 'Code source propre & Démos', Icon: Code2, highlight: false,
     },
     {
-      num: '04',
-      phase: 'Phase Finale',
-      title: 'Livraison & Suivi',
-      desc: 'Déploiement sur serveur cloud sécurisé, formation de vos équipes à l’administration et garantie de maintenance continue.',
-      deliverable: 'Mise en ligne & Support 3 mois',
-      icon: 'verified',
-      highlight: true,
+      num: '04', phase: 'Phase Finale', title: 'Livraison & Suivi',
+      desc: "Déploiement sur serveur cloud sécurisé, formation de vos équipes à l'administration et garantie de maintenance continue.",
+      deliverable: 'Mise en ligne & Support 3 mois', Icon: BadgeCheck, highlight: true,
     },
   ];
 
-  // Scroll spy to track active section dynamically
+  // Cache section positions to avoid offsetTop reads on every scroll event
+  const sectionPositionsRef = useRef([]);
+  const raf = useRef(null);
+
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-
-      // Detect bottom of page - activate the last item ('contact')
-      if (window.innerHeight + Math.round(window.scrollY) >= document.documentElement.scrollHeight - 60) {
-        setActiveSection('contact');
-        return;
-      }
-
-      const scrollPosition = window.scrollY + 140; // sticky header offset
-      const sections = navItems.map((item) => document.getElementById(item.id)).filter(Boolean);
-
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i];
-        if (section && section.offsetTop <= scrollPosition) {
-          setActiveSection(navItems[i].id);
-          break;
-        }
-      }
+    const cachePositions = () => {
+      sectionPositionsRef.current = navItems
+        .map(item => {
+          const el = document.getElementById(item.id);
+          return el ? { id: item.id, top: el.offsetTop } : null;
+        })
+        .filter(Boolean);
     };
 
+    const handleScroll = () => {
+      if (raf.current) return; // throttle to one rAF per frame
+      raf.current = requestAnimationFrame(() => {
+        raf.current = null;
+        const scrollY = window.scrollY;
+        setIsScrolled(scrollY > 20);
+
+        if (window.innerHeight + Math.round(scrollY) >= document.documentElement.scrollHeight - 60) {
+          setActiveSection('contact');
+          return;
+        }
+
+        const scrollPosition = scrollY + 140;
+        const positions = sectionPositionsRef.current;
+        for (let i = positions.length - 1; i >= 0; i--) {
+          if (positions[i].top <= scrollPosition) {
+            setActiveSection(positions[i].id);
+            break;
+          }
+        }
+      });
+    };
+
+    // Cache on mount and on resize (not on every scroll)
+    cachePositions();
+    const handleResize = () => cachePositions();
+    window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+      if (raf.current) cancelAnimationFrame(raf.current);
+    };
   }, []);
 
   const handleNavClick = (e, id) => {
@@ -247,10 +239,7 @@ export default function NexoraScreen({ onSelectScreen }) {
     const target = document.getElementById(id);
     if (target) {
       const targetPosition = target.getBoundingClientRect().top + window.scrollY - 72;
-      window.scrollTo({
-        top: targetPosition,
-        behavior: 'smooth',
-      });
+      window.scrollTo({ top: targetPosition, behavior: 'smooth' });
       window.history.pushState(null, '', `#${id}`);
     }
   };
@@ -266,28 +255,29 @@ export default function NexoraScreen({ onSelectScreen }) {
   };
 
   const techStack = [
-    { name: 'HTML5', icon: 'html' },
-    { name: 'CSS3', icon: 'css' },
-    { name: 'Bootstrap', icon: 'view_quilt' },
-    { name: 'Tailwind CSS', icon: 'palette' },
-    { name: 'JavaScript', icon: 'javascript' },
-    { name: 'React', icon: 'code_blocks' },
-    { name: 'PHP', icon: 'php' },
-    { name: 'Laravel', icon: 'layers' },
-    { name: 'Python', icon: 'terminal' },
-    { name: 'Git & GitHub', icon: 'commit' },
-    { name: 'Docker', icon: 'deployed_code' },
-    { name: 'Node.js', icon: 'settings_ethernet' },
-    { name: 'Express.js', icon: 'hub' },
-    { name: 'MongoDB', icon: 'database' },
-    { name: 'MySQL', icon: 'storage' },
+    { name: 'HTML5', Icon: Code2 },
+    { name: 'CSS3', Icon: FileCode2 },
+    { name: 'Bootstrap', Icon: LayoutDashboard },
+    { name: 'Tailwind CSS', Icon: Palette },
+    { name: 'JavaScript', Icon: Braces },
+    { name: 'React', Icon: Code2 },
+    { name: 'PHP', Icon: Code2 },
+    { name: 'Laravel', Icon: Layers },
+    { name: 'Python', Icon: Terminal },
+    { name: 'Git & GitHub', Icon: GitCommit },
+    { name: 'Docker', Icon: Container },
+    { name: 'Node.js', Icon: Network },
+    { name: 'Express.js', Icon: Globe },
+    { name: 'MongoDB', Icon: Database },
+    { name: 'MySQL', Icon: HardDrive },
   ];
 
   return (
     <div className="w-full bg-[#faf6f0] text-[#2e3230] min-h-screen" id="nexora-view">
-      {/* 1. Header Navigation - FIXED AT THE VERY TOP (sticky top-0) WITH ACTIVE STATE */}
+      {/* 1. Header Navigation */}
       <header
-        className={`sticky top-0 z-50 w-full transition-all duration-200  ${isScrolled
+        className={`sticky top-0 z-50 w-full transition-all duration-200 ${
+          isScrolled
             ? 'bg-[#faf6f0]/95 backdrop-blur-md shadow-sm border-b border-[#c4c8bc]/60'
             : 'bg-[#faf6f0]/90 backdrop-blur-md border-b border-[#c4c8bc]/40'
         }`}
@@ -308,7 +298,7 @@ export default function NexoraScreen({ onSelectScreen }) {
             />
           </a>
 
-          {/* Desktop Nav Links with Active Color */}
+          {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-8 font-semibold text-sm">
             {navItems.map((item) => {
               const isActive = activeSection === item.id;
@@ -318,9 +308,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                   href={`#${item.id}`}
                   onClick={(e) => handleNavClick(e, item.id)}
                   className={`transition-colors duration-200 ${
-                    isActive
-                      ? 'text-primary'
-                      : 'text-[#4a4e4a] hover:text-primary'
+                    isActive ? 'text-primary' : 'text-[#4a4e4a] hover:text-primary'
                   }`}
                 >
                   {item.label}
@@ -337,24 +325,21 @@ export default function NexoraScreen({ onSelectScreen }) {
               className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-sm font-semibold shadow-xs hover:shadow-md transition-all hover:-translate-y-0.5"
             >
               <span>Démarrer un projet</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+              <ArrowRight size={16} />
             </a>
 
-            {/* Mobile menu button */}
             <button
               type="button"
               className="lg:hidden p-2 rounded-lg text-[#2e3230] hover:bg-black/5"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               aria-label="Menu mobile"
             >
-              <span className="material-symbols-outlined text-2xl">
-                {isMobileMenuOpen ? 'close' : 'menu'}
-              </span>
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation Dropdown with Active Color */}
+        {/* Mobile Navigation Dropdown */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-[#c4c8bc]/60 bg-[#faf6f0] px-4 pt-3 pb-6 space-y-2 shadow-lg">
             {navItems.map((item) => {
@@ -365,9 +350,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                   href={`#${item.id}`}
                   onClick={(e) => handleNavClick(e, item.id)}
                   className={`block px-3 py-2 rounded-lg font-semibold transition-colors ${
-                    isActive
-                      ? 'text-primary'
-                      : 'text-[#4a4e4a] hover:text-primary'
+                    isActive ? 'text-primary' : 'text-[#4a4e4a] hover:text-primary'
                   }`}
                 >
                   {item.label}
@@ -381,7 +364,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-white font-semibold text-sm shadow-sm"
               >
                 <span>Démarrer un projet</span>
-                <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                <ArrowRight size={16} />
               </a>
             </div>
           </div>
@@ -399,6 +382,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 <span>Agence de développement informatique • Casablanca</span>
               </div>
 
+              {/* LCP element — no font dependency delay */}
               <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-extrabold text-[#2e3230] leading-[1.18] tracking-tight">
                 Nous transformons vos idées en{' '}
                 <span className="text-primary italic font-serif">solutions digitales performantes.</span>
@@ -415,7 +399,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all hover:-translate-y-0.5"
                 >
                   <span>Démarrer un projet</span>
-                  <span className="material-symbols-outlined text-[18px]">arrow_outward</span>
+                  <ArrowUpRight size={16} />
                 </a>
                 <a
                   href="#realisations"
@@ -423,23 +407,21 @@ export default function NexoraScreen({ onSelectScreen }) {
                   className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white hover:bg-[#f0ece4] text-[#2e3230] border border-[#c4c8bc] font-semibold text-sm shadow-xs transition-all hover:-translate-y-0.5"
                 >
                   <span>Voir nos réalisations</span>
-                  <span className="material-symbols-outlined text-[18px]">grid_view</span>
+                  <Grid2x2 size={16} />
                 </a>
               </div>
 
               <div className="mt-8 pt-8 border-t border-[#c4c8bc]/40 flex flex-wrap gap-6 text-xs sm:text-sm font-semibold text-[#4a4e4a]">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
-                  <span>Design UI/UX</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
-                  <span>Développement Full-Stack</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-primary text-[20px]">check_circle</span>
-                  <span>Accompagnement Continu</span>
-                </div>
+                {[
+                  'Design UI/UX',
+                  'Développement Full-Stack',
+                  'Accompagnement Continu',
+                ].map((label) => (
+                  <div key={label} className="flex items-center gap-2">
+                    <CheckCircle2 size={18} className="text-primary shrink-0" />
+                    <span>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -453,12 +435,10 @@ export default function NexoraScreen({ onSelectScreen }) {
                     <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]"></span>
                   </div>
                   <div className="bg-neutral-800/90 rounded px-3 py-1 flex items-center gap-1.5 text-[11px] font-mono text-neutral-300">
-                    <span className="material-symbols-outlined text-[13px] text-neutral-400">lock</span>
+                    <Lock size={11} className="text-neutral-400" />
                     <span>app.atlaslogix.ma/dashboard</span>
                   </div>
-                  <span className="material-symbols-outlined text-[16px] text-neutral-400">
-                    notifications
-                  </span>
+                  <Bell size={14} className="text-neutral-400" />
                 </div>
                 <div className="p-0 overflow-hidden bg-neutral-100 aspect-video">
                   <img
@@ -471,9 +451,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                     decoding="async"
                     className="w-full h-full object-cover hover:scale-102 transition-transform duration-500"
                     onError={(e) => {
-                      if (PORTFOLIO_ITEMS[0]?.image) {
-                        e.currentTarget.src = PORTFOLIO_ITEMS[0].image;
-                      }
+                      if (PORTFOLIO_ITEMS[0]?.image) e.currentTarget.src = PORTFOLIO_ITEMS[0].image;
                     }}
                   />
                 </div>
@@ -481,9 +459,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
               {/* Satellite Badges */}
               <div className="hidden sm:flex absolute -top-4 -left-6 bg-white/95 backdrop-blur-sm border border-[#c4c8bc]/80 rounded-xl p-3 shadow-lg items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 font-extrabold flex items-center justify-center text-base">
-                  99
-                </div>
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 font-extrabold flex items-center justify-center text-base">99</div>
                 <div>
                   <div className="font-bold text-xs text-[#2e3230]">Performance</div>
                   <div className="text-[11px] text-[#6b6358]">Architecture performante</div>
@@ -492,7 +468,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
               <div className="hidden sm:flex absolute -bottom-4 -right-6 bg-white/95 backdrop-blur-sm border border-[#c4c8bc]/80 rounded-xl p-3 shadow-lg items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#f0e8db] text-[#705c30] flex items-center justify-center">
-                  <span className="material-symbols-outlined text-[20px]">verified</span>
+                  <BadgeCheck size={20} />
                 </div>
                 <div>
                   <div className="font-bold text-xs text-[#2e3230]">+45% de conversion</div>
@@ -515,7 +491,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                     key={idx}
                     className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white border border-[#c4c8bc]/60 shadow-xs text-xs font-semibold text-[#2e3230] whitespace-nowrap"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-primary">{tech.icon}</span>
+                    <tech.Icon size={16} className="text-primary shrink-0" />
                     <span>{tech.name}</span>
                   </div>
                 ))}
@@ -530,7 +506,7 @@ export default function NexoraScreen({ onSelectScreen }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-              <span className="material-symbols-outlined text-[16px]">sell</span>
+              <Tag size={14} />
               <span>Tarifs Transparents & Forfaits</span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230]">
@@ -558,9 +534,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 )}
 
                 <div className="flex-1 flex flex-col">
-                  <div className="text-xs font-bold text-primary uppercase tracking-wider mb-1.5">
-                    {plan.step}
-                  </div>
+                  <div className="text-xs font-bold text-primary uppercase tracking-wider mb-1.5">{plan.step}</div>
                   <h3 className="font-serif text-2xl font-bold text-[#2e3230] mb-2">{plan.name}</h3>
                   <p className="text-xs text-[#6b6358] leading-relaxed mb-6">{plan.desc}</p>
 
@@ -575,9 +549,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                   <ul className="space-y-3 mb-6 text-xs text-[#4a4e4a] flex-1">
                     {plan.features.map((feat, fIdx) => (
                       <li key={fIdx} className="flex items-start gap-2.5">
-                        <span className="material-symbols-outlined text-primary text-[18px] shrink-0 mt-0.5">
-                          check_circle
-                        </span>
+                        <CheckCircle2 size={16} className="text-primary shrink-0 mt-0.5" />
                         <span className="leading-snug">{feat}</span>
                       </li>
                     ))}
@@ -609,7 +581,7 @@ export default function NexoraScreen({ onSelectScreen }) {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-                <span className="material-symbols-outlined text-[16px]">workspace_premium</span>
+                <Award size={14} />
                 <span>Études de Cas & Déploiements</span>
               </div>
               <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230]">
@@ -687,7 +659,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                       className="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#faf6f0] hover:bg-primary hover:text-white border border-[#c4c8bc]/80 text-xs font-semibold text-[#2e3230] transition-colors"
                     >
                       <span>Consulter ce projet</span>
-                      <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+                      <ExternalLink size={14} />
                     </a>
                   </div>
                 </div>
@@ -702,7 +674,7 @@ export default function NexoraScreen({ onSelectScreen }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-              <span className="material-symbols-outlined text-[16px]">route</span>
+              <Route size={14} />
               <span>Méthodologie Agile</span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230]">
@@ -718,9 +690,7 @@ export default function NexoraScreen({ onSelectScreen }) {
               <div key={idx} className="relative flex flex-col">
                 <div
                   className={`bg-white rounded-2xl p-6 sm:p-7 border shadow-xs hover:shadow-md transition-all flex flex-col justify-between h-full relative z-10 ${
-                    step.highlight
-                      ? 'border-primary/60 ring-1 ring-primary/20'
-                      : 'border-[#c4c8bc]/70'
+                    step.highlight ? 'border-primary/60 ring-1 ring-primary/20' : 'border-[#c4c8bc]/70'
                   }`}
                 >
                   <div>
@@ -729,9 +699,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                         {step.num}
                       </div>
                       <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                        step.highlight
-                          ? 'bg-[#f0e8db] text-[#705c30]'
-                          : 'bg-[#f0ece4] text-[#6b6358]'
+                        step.highlight ? 'bg-[#f0e8db] text-[#705c30]' : 'bg-[#f0ece4] text-[#6b6358]'
                       }`}>
                         {step.phase}
                       </span>
@@ -740,17 +708,16 @@ export default function NexoraScreen({ onSelectScreen }) {
                     <p className="text-xs text-[#4a4e4a] leading-relaxed mb-5">{step.desc}</p>
                   </div>
                   <div className="pt-3 border-t border-[#c4c8bc]/30 flex items-center gap-2 text-xs font-semibold text-primary mt-auto">
-                    <span className="material-symbols-outlined text-[16px]">{step.icon}</span>
+                    <step.Icon size={15} className="shrink-0" />
                     <span>{step.deliverable}</span>
                   </div>
                 </div>
 
-                {/* Trait de liaison horizontal sur grand écran */}
+                {/* Connector line — desktop */}
                 {idx < 3 && (
                   <div className="hidden lg:block absolute top-10 -right-6 w-6 h-[2px] bg-primary/60 z-20 pointer-events-none"></div>
                 )}
-
-                {/* Trait de liaison vertical sur mobile */}
+                {/* Connector line — mobile */}
                 {idx < 3 && (
                   <div className="sm:hidden flex justify-center py-2">
                     <div className="w-[2px] h-6 bg-primary/60"></div>
@@ -769,7 +736,7 @@ export default function NexoraScreen({ onSelectScreen }) {
             {/* Left */}
             <div className="lg:col-span-6">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-                <span className="material-symbols-outlined text-[16px]">groups</span>
+                <Users size={14} />
                 <span>Notre Philosophie d'Atelier</span>
               </div>
               <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230] leading-tight mb-4">
@@ -786,7 +753,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 onClick={(e) => handleNavClick(e, 'contact')}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white hover:bg-[#f0ece4] text-[#2e3230] border border-[#c4c8bc] font-semibold text-sm shadow-xs transition-all"
               >
-                <span className="material-symbols-outlined text-primary text-[18px]">forum</span>
+                <MessageSquare size={16} className="text-primary" />
                 <span>Discuter de votre projet avec un ingénieur</span>
               </a>
             </div>
@@ -796,30 +763,22 @@ export default function NexoraScreen({ onSelectScreen }) {
               <div className="bg-white rounded-2xl p-6 border border-[#c4c8bc]/70 shadow-xs">
                 <div className="font-serif text-3xl sm:text-4xl font-black text-primary mb-1">+20</div>
                 <div className="font-bold text-sm text-[#2e3230] mb-1">Projets réalisés</div>
-                <p className="text-xs text-[#6b6358] leading-relaxed">
-                  Livrés avec succès pour des PME, startups ambitieuses et grands comptes marocains.
-                </p>
+                <p className="text-xs text-[#6b6358] leading-relaxed">Livrés avec succès pour des PME, startups ambitieuses et grands comptes marocains.</p>
               </div>
 
               <div className="bg-white rounded-2xl p-6 border border-[#c4c8bc]/70 shadow-xs">
                 <div className="font-serif text-3xl sm:text-4xl font-black text-[#705c30] mb-1">100%</div>
                 <div className="font-bold text-sm text-[#2e3230] mb-1">Sur mesure</div>
-                <p className="text-xs text-[#6b6358] leading-relaxed">
-                  Architecture logicielle propre, aucun CMS bloquant ni template générique ralenti.
-                </p>
+                <p className="text-xs text-[#6b6358] leading-relaxed">Architecture logicielle propre, aucun CMS bloquant ni template générique ralenti.</p>
               </div>
 
               <div className="sm:col-span-2 bg-white rounded-2xl p-6 border border-[#c4c8bc]/70 shadow-xs flex items-center justify-between gap-4">
                 <div>
-                  <div className="font-serif text-lg font-bold text-[#2e3230]">
-                    Accompagnement de A à Z
-                  </div>
-                  <p className="text-xs text-[#6b6358] mt-1 max-w-md">
-                    Du cadrage initial au support après-vente, formation aux back-offices et évolutions continues sous garantie.
-                  </p>
+                  <div className="font-serif text-lg font-bold text-[#2e3230]">Accompagnement de A à Z</div>
+                  <p className="text-xs text-[#6b6358] mt-1 max-w-md">Du cadrage initial au support après-vente, formation aux back-offices et évolutions continues sous garantie.</p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-[26px]">handshake</span>
+                  <Handshake size={24} />
                 </div>
               </div>
             </div>
@@ -832,7 +791,7 @@ export default function NexoraScreen({ onSelectScreen }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-              <span className="material-symbols-outlined text-[16px]">quiz</span>
+              <HelpCircle size={14} />
               <span>Questions Fréquentes</span>
             </div>
             <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230]">
@@ -851,9 +810,7 @@ export default function NexoraScreen({ onSelectScreen }) {
               >
                 <div className="flex items-start justify-between gap-3 mb-2 font-bold text-sm sm:text-base text-[#2e3230]">
                   <span>{item.q}</span>
-                  <span className="material-symbols-outlined text-primary text-[20px] shrink-0">
-                    {item.icon}
-                  </span>
+                  <HelpCircle size={18} className="text-primary shrink-0" />
                 </div>
                 <p className="text-xs sm:text-sm text-[#4a4e4a] leading-relaxed">{item.a}</p>
               </div>
@@ -870,7 +827,7 @@ export default function NexoraScreen({ onSelectScreen }) {
             <div className="lg:col-span-5 flex flex-col justify-between">
               <div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#f0e8db] text-[#705c30] mb-3">
-                  <span className="material-symbols-outlined text-[16px]">send</span>
+                  <Send size={14} />
                   <span>Démarrage Immédiat</span>
                 </div>
                 <h2 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[#2e3230] mb-3">
@@ -883,7 +840,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 <div className="space-y-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white border border-[#c4c8bc]/70 flex items-center justify-center text-primary shadow-xs">
-                      <span className="material-symbols-outlined text-[20px]">location_on</span>
+                      <MapPin size={18} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#2e3230]">Localisation</div>
@@ -893,7 +850,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white border border-[#c4c8bc]/70 flex items-center justify-center text-primary shadow-xs">
-                      <span className="material-symbols-outlined text-[20px]">mail</span>
+                      <Mail size={18} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#2e3230]">Email professionnel</div>
@@ -905,7 +862,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-white border border-[#c4c8bc]/70 flex items-center justify-center text-primary shadow-xs">
-                      <span className="material-symbols-outlined text-[20px]">call</span>
+                      <Phone size={18} />
                     </div>
                     <div>
                       <div className="text-xs font-bold text-[#2e3230]">Téléphone direct</div>
@@ -920,7 +877,7 @@ export default function NexoraScreen({ onSelectScreen }) {
               </div>
 
               <div className="mt-8 p-4 rounded-xl bg-white border border-[#c4c8bc]/70 shadow-xs flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary text-[24px]">verified_user</span>
+                <ShieldCheck size={22} className="text-primary shrink-0" />
                 <span className="text-xs text-[#4a4e4a] font-medium">
                   Contrat d'engagement légal marocain, confidentialité stricte (NDA) & code source garanti.
                 </span>
@@ -933,7 +890,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                 {formSubmitted ? (
                   <div className="text-center py-10">
                     <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto mb-4">
-                      <span className="material-symbols-outlined text-[32px]">check_circle</span>
+                      <CheckCircle2 size={32} />
                     </div>
                     <h3 className="font-serif text-2xl font-bold text-[#2e3230] mb-2">
                       Demande transmise avec succès !
@@ -1025,7 +982,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                       className="w-full py-3.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-semibold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span>Envoyer ma demande</span>
-                      <span className="material-symbols-outlined text-[18px]">send</span>
+                      <Send size={16} />
                     </button>
 
                     <p className="text-center text-[11px] text-[#4a4e4a] pt-2">
@@ -1055,18 +1012,16 @@ export default function NexoraScreen({ onSelectScreen }) {
                 />
               </div>
               <p className="text-xs text-neutral-400 max-w-md leading-relaxed">
-                Agence de développement web et logiciel à Casablanca . Nous accompagnons la transformation digitale des entreprises marocaines par des architectures modernes et performantes.
+                Agence de développement web et logiciel à Casablanca. Nous accompagnons la transformation digitale des entreprises marocaines par des architectures modernes et performantes.
               </p>
               <div className="flex items-center gap-2 mt-4 text-xs text-emerald-400">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
-                <span>Disponibles pour nouveaux projets </span>
+                <span>Disponibles pour nouveaux projets</span>
               </div>
             </div>
 
             <div className="md:col-span-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">
-                Solutions Digitales
-              </div>
+              <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">Solutions Digitales</div>
               <div className="space-y-2.5 text-xs text-neutral-400">
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Site Vitrine</a>
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Site Catalogue</a>
@@ -1077,9 +1032,7 @@ export default function NexoraScreen({ onSelectScreen }) {
             </div>
 
             <div className="md:col-span-3">
-              <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">
-                Navigation Rapide
-              </div>
+              <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">Navigation Rapide</div>
               <div className="space-y-2.5 text-xs text-neutral-400">
                 <a href="#accueil" onClick={(e) => handleNavClick(e, 'accueil')} className="block hover:text-white transition-colors">Accueil</a>
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Nos Services & Tarifs</a>
@@ -1091,7 +1044,7 @@ export default function NexoraScreen({ onSelectScreen }) {
           </div>
 
           <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
-            <div>© 2026 Nexora Studio. Tous droits réservés. Casablanca , Maroc.</div>
+            <div>© 2026 Nexora Studio. Tous droits réservés. Casablanca, Maroc.</div>
             <div className="flex items-center gap-6">
               <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-neutral-300">Mentions Légales</a>
               <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-neutral-300">Confidentialité</a>
@@ -1113,7 +1066,7 @@ export default function NexoraScreen({ onSelectScreen }) {
           className="w-13 h-13 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-lg hover:shadow-xl hover:scale-105 transition-all"
           title="Discuter sur WhatsApp (+212 7 80 65 15 08)"
         >
-          <span className="material-symbols-outlined text-[26px]">chat</span>
+          <MessageCircle size={24} />
         </a>
       </div>
     </div>

@@ -3,26 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nexora Studio & Écrans Applicatifs</title>
-    <meta name="description" content="Application vitrine et suite d'écrans interactifs (Nexora, L'Éxcellence Hôtel, Sakan Gestion, FlexStyle, ShopFlow) en React JSX et CSS pur." />
-    <meta property="og:title" content="Nexora Studio & Écrans Applicatifs" />
-    <meta property="og:description" content="Application vitrine et suite d'écrans interactifs (Nexora, L'Éxcellence Hôtel, Sakan Gestion, FlexStyle, ShopFlow) en React JSX et CSS pur." />
+    <title>Nexora Studio — Agence de Développement Web & Logiciel à Casablanca</title>
+    <meta name="description" content="Nexora Studio, agence de développement web et logiciel à Casablanca. Sites vitrine, e-commerce CMI, applications sur mesure et SaaS pour entreprises marocaines." />
+    <meta property="og:title" content="Nexora Studio — Agence de Développement Web à Casablanca" />
+    <meta property="og:description" content="Nexora Studio, agence de développement web et logiciel à Casablanca. Sites vitrine, e-commerce CMI, applications sur mesure et SaaS." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <!-- Preconnect to Font CDNs -->
+
+    <!--
+      Critical inline styles to prevent FOUC (Flash of Unstyled Content).
+      These replicate key body/html rules from styles.css so the browser
+      paints a styled background immediately before any CSS/JS loads.
+    -->
+    <style>
+      *,::before,::after{box-sizing:border-box}
+      html{scroll-behavior:smooth}
+      body{
+        margin:0;
+        background-color:#faf6f0;
+        color:#2e3230;
+        font-family:-apple-system,BlinkMacSystemFont,'Nunito Sans',sans-serif;
+        -webkit-font-smoothing:antialiased;
+      }
+      #root{min-height:100vh}
+    </style>
+
+    <!-- Preconnect to Google Fonts CDN -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-    <!-- Optimized Web Fonts (Asynchronous non-render-blocking with display=swap) -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,600;7..72,800&family=Nunito+Sans:wght@400;600;700;800&family=Geist+Mono:wght@400;500&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,600;7..72,800&family=Nunito+Sans:wght@400;600;700;800&family=Geist+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'">
-
-    <!-- Google Material Symbols Outlined (Static size/weight, non-blocking: drops payload from 3.9MB to 15KB) -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" media="print" onload="this.media='all'">
+    <!--
+      Non-render-blocking web fonts.
+      - Literata: used only for serif headings (h1, h2, h3) — load 2 weights max
+      - Nunito Sans: body text — load 3 weights
+      - Geist Mono: removed (only used in browser address bar mockup, system mono fallback works fine)
+      - Material Symbols: REMOVED — replaced with Lucide React SVG icons (0 KiB font download)
+      font-display=swap ensures text is visible immediately using fallback fonts.
+    -->
+    <link rel="preload" as="style"
+      href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700;7..72,900&family=Nunito+Sans:wght@400;600;800&display=swap">
+    <link rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700;7..72,900&family=Nunito+Sans:wght@400;600;800&display=swap"
+      media="print" onload="this.media='all'">
 
     <noscript>
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,600;7..72,800&family=Nunito+Sans:wght@400;600;700;800&family=Geist+Mono:wght@400;500&display=swap">
-      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap">
+      <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,700;7..72,900&family=Nunito+Sans:wght@400;600;800&display=swap">
     </noscript>
   </head>
   <body>
@@ -30,4 +56,3 @@
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
-
