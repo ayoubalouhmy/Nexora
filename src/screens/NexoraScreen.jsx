@@ -69,56 +69,45 @@ export default function NexoraScreen({ onSelectScreen }) {
     },
   ];
 
-  // Cache section positions to avoid offsetTop reads on every scroll event
-  const sectionPositionsRef = useRef([]);
-  const raf = useRef(null);
-
   useEffect(() => {
-    const cachePositions = () => {
-      sectionPositionsRef.current = navItems
-        .map(item => {
-          const el = document.getElementById(item.id);
-          return el ? { id: item.id, top: el.offsetTop } : null;
-        })
-        .filter(Boolean);
-    };
-
+    let ticking = false;
     const handleScroll = () => {
-      if (raf.current) return; // throttle to one rAF per frame
-      raf.current = requestAnimationFrame(() => {
-        raf.current = null;
-        const scrollY = window.scrollY;
-        setIsScrolled(scrollY > 20);
-
-        if (window.innerHeight + Math.round(scrollY) >= document.documentElement.scrollHeight - 60) {
-          setActiveSection('contact');
-          return;
-        }
-
-        const scrollPosition = scrollY + 140;
-        const positions = sectionPositionsRef.current;
-        for (let i = positions.length - 1; i >= 0; i--) {
-          if (positions[i].top <= scrollPosition) {
-            setActiveSection(positions[i].id);
-            break;
-          }
-        }
-      });
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsScrolled(window.scrollY > 20);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
-
-    // Cache on mount and on resize (not on every scroll)
-    cachePositions();
-    const handleResize = () => cachePositions();
-    window.addEventListener('resize', handleResize, { passive: true });
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
+
+    // Use IntersectionObserver to track active section with 0 forced reflows
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      {
+        rootMargin: '-20% 0px -60% 0px',
+        threshold: 0,
+      }
+    );
+
+    navItems.forEach((item) => {
+      const el = document.getElementById(item.id);
+      if (el) observer.observe(el);
+    });
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
-      if (raf.current) cancelAnimationFrame(raf.current);
+      observer.disconnect();
     };
   }, []);
+
 
   const handleNavClick = (e, id) => {
     e.preventDefault();
@@ -899,7 +888,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                   className="h-9 sm:h-10 w-auto object-contain opacity-95"
                 />
               </div>
-              <p className="text-xs text-neutral-400 max-w-md leading-relaxed">
+              <p className="text-xs text-neutral-300 max-w-md leading-relaxed">
                 Agence de développement web et logiciel à Casablanca. Nous accompagnons la transformation digitale des entreprises marocaines par des architectures modernes et performantes.
               </p>
               <div className="flex items-center gap-2 mt-4 text-xs text-emerald-400">
@@ -910,7 +899,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
             <div className="md:col-span-3">
               <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">Solutions Digitales</div>
-              <div className="space-y-2.5 text-xs text-neutral-400">
+              <div className="space-y-2.5 text-xs text-neutral-300">
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Site Vitrine</a>
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Site Catalogue</a>
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block text-emerald-400 font-semibold hover:underline">E-Commerce Marocain & CMI</a>
@@ -921,7 +910,7 @@ export default function NexoraScreen({ onSelectScreen }) {
 
             <div className="md:col-span-3">
               <div className="text-xs font-bold uppercase tracking-wider text-white mb-4">Navigation Rapide</div>
-              <div className="space-y-2.5 text-xs text-neutral-400">
+              <div className="space-y-2.5 text-xs text-neutral-300">
                 <a href="#accueil" onClick={(e) => handleNavClick(e, 'accueil')} className="block hover:text-white transition-colors">Accueil</a>
                 <a href="#services" onClick={(e) => handleNavClick(e, 'services')} className="block hover:text-white transition-colors">Nos Services & Tarifs</a>
                 <a href="#realisations" onClick={(e) => handleNavClick(e, 'realisations')} className="block hover:text-white transition-colors">Portfolio & Projets</a>
@@ -931,12 +920,12 @@ export default function NexoraScreen({ onSelectScreen }) {
             </div>
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500">
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
             <div>© 2026 Nexora Studio. Tous droits réservés. Casablanca, Maroc.</div>
             <div className="flex items-center gap-6">
-              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-neutral-300">Mentions Légales</a>
-              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-neutral-300">Confidentialité</a>
-              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-neutral-300">Conditions de Service</a>
+              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-white">Mentions Légales</a>
+              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-white">Confidentialité</a>
+              <a href="#contact" onClick={(e) => handleNavClick(e, 'contact')} className="hover:text-white">Conditions de Service</a>
             </div>
           </div>
         </div>

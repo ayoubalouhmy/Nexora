@@ -150,9 +150,11 @@ export default function TransparentLogo({
       alt={alt}
       width={width}
       height={height}
+      style={{ aspectRatio: `${width} / ${height}` }}
       loading="eager"
       decoding="async"
       className={className}
     />
   );
 }
+
