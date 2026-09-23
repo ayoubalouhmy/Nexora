@@ -1,10 +1,129 @@
 import React, { useState, useEffect } from 'react';
 import {
-  DYNAMIC_IMAGES,
+  
   NEXORA_PRICING,
   PORTFOLIO_ITEMS,
   FAQ_ITEMS,
 } from '../data/screensData.js';
+
+function TransparentLogo({ src, alt, className, invert = false, style }) {
+  const [processedSrc, setProcessedSrc] = useState(src);
+
+  useEffect(() => {
+    let isMounted = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+
+    const process = () => {
+      try {
+        const w = img.naturalWidth || img.width;
+        const h = img.naturalHeight || img.height;
+        if (!w || !h) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, w, h);
+        const d = imgData.data;
+
+        // Sample corner background colors
+        const bgR = (d[0] + d[(w - 1) * 4]) / 2;
+        const bgG = (d[1] + d[(w - 1) * 4 + 1]) / 2;
+        const bgB = (d[2] + d[(w - 1) * 4 + 2]) / 2;
+
+        let minX = w;
+        let minY = h;
+        let maxX = 0;
+        let maxY = 0;
+
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const r = d[idx];
+            const g = d[idx + 1];
+            const b = d[idx + 2];
+
+            const dist = Math.hypot(r - bgR, g - bgG, b - bgB);
+            const isVeryLight = r > 210 && g > 210 && b > 210;
+            const isLightNeutral =
+              r > 175 && g > 175 && b > 175 && Math.abs(r - g) < 18 && Math.abs(r - b) < 18;
+
+            if (dist < 40 || isVeryLight || isLightNeutral) {
+              d[idx + 3] = 0;
+            } else {
+              if (dist < 60) {
+                const alphaFactor = (dist - 40) / 20;
+                d[idx + 3] = Math.round(d[idx + 3] * alphaFactor);
+              }
+
+              if (invert) {
+                // If it's dark text, brighten it for dark mode
+                if (r < 100 && g < 120 && b < 110) {
+                  d[idx] = 245;
+                  d[idx + 1] = 247;
+                  d[idx + 2] = 245;
+                } else {
+                  // Brighten the green icon
+                  d[idx] = Math.min(255, r + 50);
+                  d[idx + 1] = Math.min(255, g + 80);
+                  d[idx + 2] = Math.min(255, b + 60);
+                }
+              }
+
+              if (d[idx + 3] > 25) {
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+              }
+            }
+          }
+        }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        // Crop tightly to logo bounds so it renders large and sharp without empty borders
+        if (maxX > minX && maxY > minY) {
+          const pad = 8;
+          const cropX = Math.max(0, minX - pad);
+          const cropY = Math.max(0, minY - pad);
+          const cropW = Math.min(w - cropX, maxX - minX + pad * 2);
+          const cropH = Math.min(h - cropY, maxY - minY + pad * 2);
+
+          const cropCanvas = document.createElement('canvas');
+          cropCanvas.width = cropW;
+          cropCanvas.height = cropH;
+          const cropCtx = cropCanvas.getContext('2d');
+          if (cropCtx) {
+            cropCtx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+            if (isMounted) setProcessedSrc(cropCanvas.toDataURL('image/png'));
+            return;
+          }
+        }
+
+        if (isMounted) setProcessedSrc(canvas.toDataURL('image/png'));
+      } catch (err) {
+        if (isMounted) setProcessedSrc(src);
+      }
+    };
+
+    img.onload = process;
+    img.src = src;
+    if (img.complete) {
+      process();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [src, invert]);
+
+  return <img src={processedSrc} alt={alt} className={className} style={style} />;
+}
 
 export default function NexoraScreen({ onSelectScreen }) {
   const [activeCategory, setActiveCategory] = useState('Tous');
@@ -147,8 +266,7 @@ export default function NexoraScreen({ onSelectScreen }) {
     <div className="w-full bg-[#faf6f0] text-[#2e3230] min-h-screen" id="nexora-view">
       {/* 1. Header Navigation - FIXED AT THE VERY TOP (sticky top-0) WITH ACTIVE STATE */}
       <header
-        className={`sticky top-0 z-50 w-full transition-all duration-200 ${
-          isScrolled
+        className={`sticky top-0 z-50 w-full transition-all duration-200  ${isScrolled
             ? 'bg-[#faf6f0]/95 backdrop-blur-md shadow-sm border-b border-[#c4c8bc]/60'
             : 'bg-[#faf6f0]/90 backdrop-blur-md border-b border-[#c4c8bc]/40'
         }`}
@@ -158,15 +276,13 @@ export default function NexoraScreen({ onSelectScreen }) {
           <a
             href="#accueil"
             onClick={(e) => handleNavClick(e, 'accueil')}
-            className="flex items-center gap-3 font-serif font-extrabold text-2xl text-[#2e3230] group"
+            className="flex items-center group py-1"
           >
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-white shadow-sm group-hover:scale-105 transition-transform">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="4" y="4" width="16" height="16" rx="4" transform="rotate(45 12 12)" />
-                <circle cx="12" cy="12" r="2.5" fill="currentColor" />
-              </svg>
-            </div>
-            <span className="tracking-tight">Nexora</span>
+            <TransparentLogo
+              src="/assets/nexora.webp"
+              alt="Nexora - Agence de Développement"
+              className="h-9 sm:h-10 w-auto object-contain group-hover:scale-102 transition-transform mix-blend-multiply"
+            />
           </a>
 
           {/* Desktop Nav Links with Active Color */}
@@ -323,9 +439,14 @@ export default function NexoraScreen({ onSelectScreen }) {
                 </div>
                 <div className="p-0 overflow-hidden bg-neutral-100">
                   <img
-                    src={DYNAMIC_IMAGES.analyticsHero}
+                    src="/assets/nexora.webp"
                     alt="Solutions Digitales & Dashboard SaaS"
                     className="w-full h-auto object-cover hover:scale-102 transition-transform duration-500"
+                    onError={(e) => {
+                      if (PORTFOLIO_ITEMS[0]?.image) {
+                        e.currentTarget.src = PORTFOLIO_ITEMS[0].image;
+                      }
+                    }}
                   />
                 </div>
               </div>
@@ -886,14 +1007,13 @@ export default function NexoraScreen({ onSelectScreen }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12 border-b border-neutral-800">
             <div className="md:col-span-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="4" y="4" width="16" height="16" rx="4" transform="rotate(45 12 12)" />
-                    <circle cx="12" cy="12" r="2.5" fill="currentColor" />
-                  </svg>
-                </div>
-                <span className="font-serif text-2xl font-extrabold text-white">Nexora</span>
+              <div className="mb-4">
+                <TransparentLogo
+                  src="/assets/nexora.webp"
+                  alt="Nexora - Agence de Développement"
+                  invert={true}
+                  className="h-9 sm:h-10 w-auto object-contain opacity-95"
+                />
               </div>
               <p className="text-xs text-neutral-400 max-w-md leading-relaxed">
                 Agence de développement web et logiciel à Casablanca . Nous accompagnons la transformation digitale des entreprises marocaines par des architectures modernes et performantes.
