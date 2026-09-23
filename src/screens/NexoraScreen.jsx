@@ -6,7 +6,7 @@ import {
   FAQ_ITEMS,
 } from '../data/screensData.js';
 
-function TransparentLogo({ src, alt, className, invert = false, style }) {
+function TransparentLogo({ src, alt, className, invert = false, style, width = 160, height = 40 }) {
   const [processedSrc, setProcessedSrc] = useState(src);
 
   useEffect(() => {
@@ -16,9 +16,14 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
 
     const process = () => {
       try {
-        const w = img.naturalWidth || img.width;
-        const h = img.naturalHeight || img.height;
-        if (!w || !h) return;
+        const natW = img.naturalWidth || img.width;
+        const natH = img.naturalHeight || img.height;
+        if (!natW || !natH) return;
+
+        // Downscale processing canvas for high speed (< 2ms vs 200ms)
+        const scale = Math.min(1, 360 / natW);
+        const w = Math.round(natW * scale);
+        const h = Math.round(natH * scale);
 
         const canvas = document.createElement('canvas');
         canvas.width = w;
@@ -26,7 +31,7 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(img, 0, 0, w, h);
         const imgData = ctx.getImageData(0, 0, w, h);
         const d = imgData.data;
 
@@ -61,13 +66,11 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
               }
 
               if (invert) {
-                // If it's dark text, brighten it for dark mode
                 if (r < 100 && g < 120 && b < 110) {
                   d[idx] = 245;
                   d[idx + 1] = 247;
                   d[idx + 2] = 245;
                 } else {
-                  // Brighten the green icon
                   d[idx] = Math.min(255, r + 50);
                   d[idx + 1] = Math.min(255, g + 80);
                   d[idx + 2] = Math.min(255, b + 60);
@@ -86,9 +89,8 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
 
         ctx.putImageData(imgData, 0, 0);
 
-        // Crop tightly to logo bounds so it renders large and sharp without empty borders
         if (maxX > minX && maxY > minY) {
-          const pad = 8;
+          const pad = 6;
           const cropX = Math.max(0, minX - pad);
           const cropY = Math.max(0, minY - pad);
           const cropW = Math.min(w - cropX, maxX - minX + pad * 2);
@@ -111,10 +113,18 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
       }
     };
 
-    img.onload = process;
+    const schedule = () => {
+      if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+        window.requestAnimationFrame(() => setTimeout(process, 0));
+      } else {
+        setTimeout(process, 0);
+      }
+    };
+
+    img.onload = schedule;
     img.src = src;
     if (img.complete) {
-      process();
+      schedule();
     }
 
     return () => {
@@ -122,7 +132,18 @@ function TransparentLogo({ src, alt, className, invert = false, style }) {
     };
   }, [src, invert]);
 
-  return <img src={processedSrc} alt={alt} className={className} style={style} />;
+  return (
+    <img
+      src={processedSrc}
+      alt={alt}
+      width={width}
+      height={height}
+      loading="eager"
+      decoding="async"
+      className={className}
+      style={style}
+    />
+  );
 }
 
 export default function NexoraScreen({ onSelectScreen }) {
@@ -281,6 +302,8 @@ export default function NexoraScreen({ onSelectScreen }) {
             <TransparentLogo
               src="/assets/nexora.webp"
               alt="Nexora - Agence de Développement"
+              width={180}
+              height={40}
               className="h-9 sm:h-10 w-auto object-contain group-hover:scale-102 transition-transform mix-blend-multiply"
             />
           </a>
@@ -437,11 +460,16 @@ export default function NexoraScreen({ onSelectScreen }) {
                     notifications
                   </span>
                 </div>
-                <div className="p-0 overflow-hidden bg-neutral-100">
+                <div className="p-0 overflow-hidden bg-neutral-100 aspect-video">
                   <img
                     src="/assets/nexora.webp"
                     alt="Solutions Digitales & Dashboard SaaS"
-                    className="w-full h-auto object-cover hover:scale-102 transition-transform duration-500"
+                    width="640"
+                    height="360"
+                    loading="eager"
+                    fetchPriority="high"
+                    decoding="async"
+                    className="w-full h-full object-cover hover:scale-102 transition-transform duration-500"
                     onError={(e) => {
                       if (PORTFOLIO_ITEMS[0]?.image) {
                         e.currentTarget.src = PORTFOLIO_ITEMS[0].image;
@@ -620,6 +648,10 @@ export default function NexoraScreen({ onSelectScreen }) {
                   <img
                     src={proj.image}
                     alt={proj.title}
+                    width="400"
+                    height="208"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-md bg-white/90 backdrop-blur-xs text-[11px] font-bold text-[#2e3230] shadow-xs">
@@ -920,8 +952,9 @@ export default function NexoraScreen({ onSelectScreen }) {
                 ) : (
                   <form onSubmit={handleFormSubmit} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#2e3230] mb-1.5">Nom complet *</label>
+                      <label htmlFor="form-name" className="block text-xs font-bold text-[#2e3230] mb-1.5">Nom complet *</label>
                       <input
+                        id="form-name"
                         type="text"
                         className="w-full px-4 py-2.5 rounded-xl border border-[#c4c8bc]/80 bg-[#faf6f0]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                         placeholder="Ex: Mehdi Benjelloun"
@@ -933,8 +966,9 @@ export default function NexoraScreen({ onSelectScreen }) {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-[#2e3230] mb-1.5">Email professionnel *</label>
+                        <label htmlFor="form-email" className="block text-xs font-bold text-[#2e3230] mb-1.5">Email professionnel *</label>
                         <input
+                          id="form-email"
                           type="email"
                           className="w-full px-4 py-2.5 rounded-xl border border-[#c4c8bc]/80 bg-[#faf6f0]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                           placeholder="mehdi@entreprise.ma"
@@ -944,8 +978,9 @@ export default function NexoraScreen({ onSelectScreen }) {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-[#2e3230] mb-1.5">Téléphone marocain (+212) *</label>
+                        <label htmlFor="form-phone" className="block text-xs font-bold text-[#2e3230] mb-1.5">Téléphone marocain (+212) *</label>
                         <input
+                          id="form-phone"
                           type="tel"
                           className="w-full px-4 py-2.5 rounded-xl border border-[#c4c8bc]/80 bg-[#faf6f0]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                           placeholder="+212 6 XX XX XX XX"
@@ -957,8 +992,9 @@ export default function NexoraScreen({ onSelectScreen }) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#2e3230] mb-1.5">Type de solution souhaitée</label>
+                      <label htmlFor="form-solution" className="block text-xs font-bold text-[#2e3230] mb-1.5">Type de solution souhaitée</label>
                       <select
+                        id="form-solution"
                         className="w-full px-4 py-2.5 rounded-xl border border-[#c4c8bc]/80 bg-[#faf6f0]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                         value={formData.solutionType}
                         onChange={(e) => setFormData({ ...formData, solutionType: e.target.value })}
@@ -973,8 +1009,9 @@ export default function NexoraScreen({ onSelectScreen }) {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#2e3230] mb-1.5">Détails de votre projet / Objectifs</label>
+                      <label htmlFor="form-details" className="block text-xs font-bold text-[#2e3230] mb-1.5">Détails de votre projet / Objectifs</label>
                       <textarea
+                        id="form-details"
                         rows="4"
                         className="w-full px-4 py-2.5 rounded-xl border border-[#c4c8bc]/80 bg-[#faf6f0]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                         placeholder="Décrivez votre vision, fonctionnalités clés, délais souhaités..."
@@ -991,7 +1028,7 @@ export default function NexoraScreen({ onSelectScreen }) {
                       <span className="material-symbols-outlined text-[18px]">send</span>
                     </button>
 
-                    <p className="text-center text-[11px] text-[#6b6358] pt-2">
+                    <p className="text-center text-[11px] text-[#4a4e4a] pt-2">
                       Réponse sous 24h ouvrées • Devis chiffré et détaillé sans engagement.
                     </p>
                   </form>
@@ -1012,6 +1049,8 @@ export default function NexoraScreen({ onSelectScreen }) {
                   src="/assets/nexora.webp"
                   alt="Nexora - Agence de Développement"
                   invert={true}
+                  width={180}
+                  height={40}
                   className="h-9 sm:h-10 w-auto object-contain opacity-95"
                 />
               </div>
